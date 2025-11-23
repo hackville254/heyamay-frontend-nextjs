@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+**HEYAMA Objects UI (Next.js)**
 
-## Getting Started
+**Aperçu**
+- Interface minimale pour créer, lister et afficher des “Objects” via une API REST.
+- Mises à jour en temps réel avec Socket.IO sur le namespace `/objects`, avec fallback manuel.
+- Upload d’images via URL présignée (style S3) et rendu optimisé avec `next/image`.
 
-First, run the development server:
+**Stack Technique**
+- Next.js `16.0.3` (App Router) + React `19` + Tailwind CSS `v4`.
+- Socket.IO client `4.8.1`.
+- Gestionnaire de paquets: `pnpm`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+**Fonctionnalités**
+- Créer un objet: titre, description, image du device; upload via URL présignée, puis création via l’API.
+- Lister les objets: lecture depuis l’API, images via URLs publiques S3/MinIO, mises à jour temps réel.
+- Voir un objet: page simple affichant titre, description, image et date.
+- Realtime: écoute des événements `objects.created` et `objects.deleted`. Si le WebSocket est indisponible, une bannière s’affiche avec rafraîchissement HTTP et “Réessayer WebSocket”.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Prérequis**
+- API sur `http://localhost:3000` (fallback possible `http://localhost:3001`). Endpoints ci‑dessous.
+- Si l’API occupe `3000`, lance le serveur Next en dev sur `3001`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Installation**
+- `pnpm install`
+- Variable optionnelle:
+  - `NEXT_PUBLIC_API_BASE=http://localhost:3000`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Exécution**
+- Démarrer Next.js (sur un port différent de l’API):
+  - `pnpm dev -- -p 3001`
+- Accueil: `http://localhost:3001/`
 
-## Learn More
+**Helpers API**
+- Détection automatique de la base entre `3000` et `3001` avec timeout 2s:
+  - `lib/api.ts:15` sonde et met en cache la base.
+- Endpoints utilisés:
+  - `listObjects()` → `GET /objects` `lib/api.ts:36`
+  - `getObject(id)` → `GET /objects/:id` `lib/api.ts:42`
+  - `getUploadUrl(filename, contentType)` → `POST /objects/upload-url` `lib/api.ts:48`
+  - `createObject({ title, description, imageUrl })` → `POST /objects` `lib/api.ts:57`
+  - `deleteObject(id)` → `DELETE /objects/:id` `lib/api.ts:66`
 
-To learn more about Next.js, take a look at the following resources:
+**Flux d’Upload**
+- Étape 1: générer l’URL présignée
+  - `POST /objects/upload-url` avec `filename`, `contentType`.
+- Étape 2: upload du fichier sur S3/MinIO via `uploadUrl` (`PUT` avec `Content-Type`).
+- Étape 3: création de l’objet avec le `publicUrl`.
+  - Voir `app/objects/new/page.tsx:20–40`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Temps Réel**
+- Namespace Socket: base API + `io(base + "/objects")` (transport `websocket` uniquement, timeout 2s).
+  - Client: `lib/socket.ts:10`.
+- Événements:
+  - `objects.created` (objet complet) → insertion en tête `app/objects/page.tsx:62`.
+  - `objects.deleted` (`{ id }`) → filtrage `app/objects/page.tsx:65`.
+- Fallback manuel:
+  - Bannière avec indicateur, boutons `Rafraîchir` (HTTP) et `Réessayer WebSocket` `app/objects/page.tsx:86–94`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Optimisation des Images**
+- `next/image` avec `fill` et `sizes` responsifs:
+  - Liste: `app/objects/page.tsx:97`.
+  - Détail: `app/objects/[id]/page.tsx:39`.
+- `next.config.mjs` autorise S3 et ton hôte MinIO:
+  - `**.amazonaws.com` et `demo-bucket-minio.dubabf.easypanel.host`.
+  - Pour un autre hôte, ajoute un `remotePatterns` avec `protocol`, `hostname`, `port`, `pathname` exacts.
 
-## Deploy on Vercel
+**Routage & Pages**
+- Accueil: liens vers la liste et la création `app/page.tsx:11–13`.
+- Liste: temps réel, suppression, navigation `app/objects/page.tsx:73–109`.
+- Création: formulaire + upload `app/objects/new/page.tsx:1–75`.
+- Détail: `React.use()` pour `params` et affichage `app/objects/[id]/page.tsx:9–41`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Composants UI**
+- Composants légers inspirés shadcn:
+  - Button `components/ui/button.tsx`
+  - Input `components/ui/input.tsx`
+  - Textarea `components/ui/textarea.tsx`
+  - Label `components/ui/label.tsx`
+  - Card `components/ui/card.tsx`
+  - Spinner `components/ui/spinner.tsx`
+- Installer les composants shadcn officiels si souhaité:
+  - `pnpm dlx shadcn@latest init`
+  - `pnpm dlx shadcn@latest add button`
+  - `pnpm dlx shadcn@latest add input`
+  - `pnpm dlx shadcn@latest add textarea`
+  - `pnpm dlx shadcn@latest add label`
+  - `pnpm dlx shadcn@latest add card`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Notes de Développement**
+- Utilise un port différent pour Next dev que l’API (`-p 3001`).
+- Fonts: `next/font` Geist appliquée via `app/layout.tsx` et CSS `var(--font-geist-sans)` `app/globals.css`.
+- Accessibilité: `aria-label` sur les liens boutons dans la liste `app/objects/page.tsx`.
+
+**Dépannage**
+- Hôte non configuré pour `next/image`: vérifie `images.remotePatterns` (`protocol`, `hostname`, `port`, `pathname`). Voir `next.config.mjs`.
+- WebSocket indisponible: la bannière mode manuel apparaît; utilise `Rafraîchir` pour HTTP ou `Réessayer WebSocket`. Connexion sur `${API_BASE}/objects` avec timeout 2s.
+- `params` asynchrones côté client: utilise `React.use()` comme `app/objects/[id]/page.tsx:10`.

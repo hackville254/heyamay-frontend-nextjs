@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { listObjects, deleteObject, Obj } from "@/lib/api"
-import { getSocket } from "@/lib/socket"
+import { getSocket, resetSocket } from "@/lib/socket"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
@@ -15,6 +15,8 @@ export default function ObjectsPage() {
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const socketRef = useRef<Socket | null>(null)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const [manualMode, setManualMode] = useState(false)
 
   async function initialLoad() {
     try {
@@ -46,8 +48,16 @@ export default function ObjectsPage() {
     }
     getSocket().then(s => {
       socketRef.current = s
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => {
+        if (!s.connected) setManualMode(true)
+      }, 2000)
+      const onConnect = () => setManualMode(false)
+      const onError = () => setManualMode(true)
       s.on("objects.created", onCreated)
       s.on("objects.deleted", onDeleted)
+      s.on("connect", onConnect)
+      s.on("connect_error", onError)
     })
     return () => {
       mounted = false
@@ -55,7 +65,10 @@ export default function ObjectsPage() {
       if (s) {
         s.off("objects.created")
         s.off("objects.deleted")
+        s.off("connect")
+        s.off("connect_error")
       }
+      if (timerRef.current) clearTimeout(timerRef.current)
     }
   }, [])
 
@@ -76,6 +89,16 @@ export default function ObjectsPage() {
         <h1 className="text-2xl font-semibold">Objects</h1>
         <Link href="/objects/new" aria-label="Create new object" className="inline-flex h-9 items-center justify-center rounded-md bg-black px-4 text-white hover:bg-neutral-800">New</Link>
       </div>
+      {manualMode && (
+        <div className="mb-4 flex items-center gap-3 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm">
+          <span className="inline-block h-2 w-2 rounded-full bg-yellow-500" />
+          <span>Mode manuel: WebSocket indisponible. Utilisez le rafraîchissement HTTP.</span>
+          <div className="ml-auto flex gap-2">
+            <Button variant="outline" onClick={initialLoad}>Rafraîchir</Button>
+            <Button onClick={() => { resetSocket(); setManualMode(false); const s = socketRef.current; if (s) { s.off("objects.created"); s.off("objects.deleted"); s.off("connect"); s.off("connect_error"); } getSocket().then(ns => { socketRef.current = ns; const onConnect = () => setManualMode(false); const onError = () => setManualMode(true); ns.on("objects.created", (data: Obj) => setItems(prev => [data, ...(prev ?? [])])); ns.on("objects.deleted", (payload: { id: string }) => setItems(prev => (prev ?? []).filter(i => i._id !== payload.id))); ns.on("connect", onConnect); ns.on("connect_error", onError); }); }}>Réessayer WebSocket</Button>
+          </div>
+        </div>
+      )}
       {loading && (
         <div className="flex items-center gap-2 text-neutral-600"><Spinner /> Loading</div>
       )}
