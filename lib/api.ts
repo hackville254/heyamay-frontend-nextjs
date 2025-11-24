@@ -1,3 +1,4 @@
+// Type definition for a single object returned by the API
 export type Obj = {
   _id: string
   title: string
@@ -6,9 +7,12 @@ export type Obj = {
   createdAt: string
 }
 
+// Cache for the discovered API base URL to avoid repeated probing
 let cachedBase: string | null = null
+// Timeout for each health-check request when probing potential API bases
 const TIMEOUT_MS = 2000
 
+// Attempts to reach the API at the given URL by calling /objects endpoint
 async function tryBase(url: string) {
   try {
     const c = new AbortController()
@@ -20,6 +24,8 @@ async function tryBase(url: string) {
   return null
 }
 
+// Resolves and caches the correct API base URL
+// Priority: cached value > NEXT_PUBLIC_API_BASE env var > localhost probe
 export async function getApiBase() {
   if (cachedBase) return cachedBase
   const envBase = process.env.NEXT_PUBLIC_API_BASE
@@ -37,6 +43,7 @@ export async function getApiBase() {
   return cachedBase
 }
 
+// Fetches the list of all objects from the API
 export async function listObjects(): Promise<Obj[]> {
   const base = await getApiBase()
   const r = await fetch(base + "/objects")
@@ -44,6 +51,7 @@ export async function listObjects(): Promise<Obj[]> {
   return r.json()
 }
 
+// Retrieves a single object by its ID
 export async function getObject(id: string): Promise<Obj> {
   const base = await getApiBase()
   const r = await fetch(base + "/objects/" + id)
@@ -52,6 +60,7 @@ export async function getObject(id: string): Promise<Obj> {
   return r.json()
 }
 
+// Requests a pre-signed upload URL for direct file upload to storage
 export async function getUploadUrl(filename: string, contentType: string): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
   const base = await getApiBase()
   const r = await fetch(base + "/objects/upload-url", {
@@ -63,6 +72,7 @@ export async function getUploadUrl(filename: string, contentType: string): Promi
   return r.json()
 }
 
+// Creates a new object with the provided metadata
 export async function createObject(input: { title: string; description: string; imageUrl: string }): Promise<Obj> {
   const base = await getApiBase()
   const r = await fetch(base + "/objects", {
@@ -74,6 +84,7 @@ export async function createObject(input: { title: string; description: string; 
   return r.json()
 }
 
+// Deletes an object by its ID and returns the deleted object
 export async function deleteObject(id: string): Promise<Obj> {
   const base = await getApiBase()
   const r = await fetch(base + "/objects/" + id, { method: "DELETE" })
