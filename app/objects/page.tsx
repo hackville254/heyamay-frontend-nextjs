@@ -1,4 +1,8 @@
 "use client"
+// Objects List Page
+// - Initial load via HTTP (sorted by createdAt desc)
+// - Realtime subscription: objects.created / objects.deleted for incremental updates
+// - Manual fallback banner when WebSocket is unavailable (HTTP refresh + retry socket)
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { listObjects, deleteObject, Obj } from "@/lib/api"

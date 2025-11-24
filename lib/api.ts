@@ -1,3 +1,6 @@
+// REST helpers for the Objects API
+// - Detects API base URL with a short timeout and caches it
+// - Provides CRUD operations and presigned S3 upload URL generation
 export type Obj = {
   _id: string
   title: string
@@ -9,6 +12,7 @@ export type Obj = {
 let cachedBase: string | null = null
 const TIMEOUT_MS = 2000
 
+// Probe an API base by calling GET /objects with a timeout
 async function tryBase(url: string) {
   try {
     const c = new AbortController()
@@ -20,6 +24,7 @@ async function tryBase(url: string) {
   return null
 }
 
+// Resolve the API base URL, preferring env override then probing localhost ports
 export async function getApiBase() {
   if (cachedBase) return cachedBase
   const envBase = process.env.NEXT_PUBLIC_API_BASE
@@ -32,11 +37,12 @@ export async function getApiBase() {
     cachedBase = a
     return cachedBase
   }
-  const b = await tryBase("http://localhost:3000")
+  const b = await tryBase("http://localhost:3001")
   cachedBase = b ?? "http://localhost:3000"
   return cachedBase
 }
 
+// List all objects
 export async function listObjects(): Promise<Obj[]> {
   const base = await getApiBase()
   const r = await fetch(base + "/objects")
@@ -44,6 +50,7 @@ export async function listObjects(): Promise<Obj[]> {
   return r.json()
 }
 
+// Get a single object by id
 export async function getObject(id: string): Promise<Obj> {
   const base = await getApiBase()
   const r = await fetch(base + "/objects/" + id)
@@ -52,6 +59,7 @@ export async function getObject(id: string): Promise<Obj> {
   return r.json()
 }
 
+// Request a presigned upload URL for S3/MinIO
 export async function getUploadUrl(filename: string, contentType: string): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
   const base = await getApiBase()
   const r = await fetch(base + "/objects/upload-url", {
@@ -63,6 +71,7 @@ export async function getUploadUrl(filename: string, contentType: string): Promi
   return r.json()
 }
 
+// Create a new object document after successful upload
 export async function createObject(input: { title: string; description: string; imageUrl: string }): Promise<Obj> {
   const base = await getApiBase()
   const r = await fetch(base + "/objects", {
@@ -74,6 +83,7 @@ export async function createObject(input: { title: string; description: string; 
   return r.json()
 }
 
+// Delete an object (and its image on S3 handled by the API)
 export async function deleteObject(id: string): Promise<Obj> {
   const base = await getApiBase()
   const r = await fetch(base + "/objects/" + id, { method: "DELETE" })

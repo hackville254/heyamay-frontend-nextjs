@@ -1,4 +1,7 @@
 "use client"
+// Object Detail Page
+// - params is async in React 19 / Next 16; we use React.use() to unwrap
+// - loads the object over HTTP and shows an optimized image
 import { useEffect, useState, use as usePromise } from "react"
 import { Obj, getObject } from "@/lib/api"
 import Link from "next/link"

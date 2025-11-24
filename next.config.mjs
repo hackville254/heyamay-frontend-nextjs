@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// Image remote patterns configured for the project's MinIO host
 const nextConfig = {
   images: {
     remotePatterns: [

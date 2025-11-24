@@ -1,4 +1,6 @@
 "use client"
+// Socket.IO client for the "/objects" namespace
+// - WebSocket transport only, short timeout, no auto-reconnection
 import { io, Socket } from "socket.io-client"
 import { getApiBase } from "@/lib/api"
 

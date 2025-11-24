@@ -1,4 +1,5 @@
 import Link from "next/link";
+// Home page: quick access to list and creation flows
 
 export default function Home() {
   return (
