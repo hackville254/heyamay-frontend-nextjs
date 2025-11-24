@@ -1,6 +1,4 @@
 "use client"
-// New Object Page
-// Upload flow in 3 steps: presign → PUT to S3/MinIO → POST /objects with publicUrl
 import { useRef, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
